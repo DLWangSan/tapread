@@ -24,9 +24,6 @@ jobs:
         with:
           repos: ${{ github.repository }}
           output-dir: assets/star-history
-          # After June 2026 GitHub stargazer API restrictions, live
-          # api.star-history.com embeds are blank for most repos.
-          # This action renders with the repo's own GITHUB_TOKEN.
           update-readme: true
           readme: README.md
           readme-format: picture

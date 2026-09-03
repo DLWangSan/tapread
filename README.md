@@ -77,10 +77,6 @@ Requirements: JDK 17+, Android SDK 35.
 
 ## Star History
 
-> **Note (2026):** GitHub restricted the public stargazers API to repository admins/collaborators.
-> Live `api.star-history.com` embeds often render blank. This repo refreshes a static chart
-> via [star-history-action](https://github.com/narayann7/star-history-action) with the repo’s own token.
-
 <!-- star-history:start -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/star-history/star-history-dark.svg">

@@ -76,11 +76,6 @@ Android 10 起，普通后台应用无法随意读取剪贴板；微信关怀模
 
 ## Star History
 
-> **说明（2026）：** GitHub 已将公开 stargazers API 限制为仓库管理员/协作者可访问。
-> 托管在 `api.star-history.com` 的在线图表对多数仓库会空白。
-> 本仓库使用 [star-history-action](https://github.com/narayann7/star-history-action)，
-> 在 CI 中用仓库自身权限生成静态图表。
-
 <p align="center">
   <a href="https://www.star-history.com/#DLWangSan/tapread&Date">
     <picture>
