@@ -35,9 +35,19 @@ object PermissionHelper {
     }
 
     fun isAccessibilityEnabled(context: Context): Boolean {
+        if (TapReadAccessibilityService.isRunning()) return true
         val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        if (!am.isEnabled) return false
         val enabled = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-        val target = "${context.packageName}/${TapReadAccessibilityService::class.java.name}"
-        return enabled.any { it.id.equals(target, ignoreCase = true) || it.resolveInfo?.serviceInfo?.name == TapReadAccessibilityService::class.java.name }
+        val pkg = context.packageName
+        val className = TapReadAccessibilityService::class.java.name
+        return enabled.any { info ->
+            val id = info.id.orEmpty()
+            id.equals("$pkg/$className", ignoreCase = true) ||
+                id.equals("$pkg/.accessibility.TapReadAccessibilityService", ignoreCase = true) ||
+                id.endsWith("/.accessibility.TapReadAccessibilityService") ||
+                id.endsWith("/TapReadAccessibilityService") ||
+                info.resolveInfo?.serviceInfo?.name == className
+        }
     }
 }

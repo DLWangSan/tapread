@@ -4,7 +4,8 @@
     <string name="app_name_en">TapRead</string>
     <string name="tagline">复制文字，点一下就能听</string>
     <string name="tagline_legacy">复制文字，自动朗读给你听</string>
-    <string name="accessibility_service_description">点读用无障碍服务监听复制操作，复制后自动朗读文字。不会读取屏幕内容，仅用于剪贴板朗读。</string>
+    <string name="accessibility_service_description">点读开启后，会在你复制文字时自动朗读。需要读取剪贴板，不会上传内容，也不会操作你的其他应用。</string>
+    <string name="accessibility_hint">请在系统设置中启用「点读」。启用后回到这里打开「启用复制即读」，复制文字应会自动朗读。若刚改过无障碍开关，建议先关闭再开启一次。</string>
     <string name="overlay_channel_name">悬浮球服务</string>
     <string name="overlay_notification_title">点读悬浮球运行中</string>
     <string name="overlay_notification_text">复制文字后点悬浮球即可朗读</string>
@@ -24,7 +25,6 @@
     <string name="start_clipboard_monitor">开启复制即读</string>
     <string name="stop_clipboard_monitor">关闭复制即读</string>
     <string name="open_accessibility">打开无障碍设置</string>
-    <string name="accessibility_hint">在系统设置中启用「点读」，复制后会自动朗读。</string>
     <string name="auto_read_switch">启用复制即读</string>
     <string name="speech_rate">语速</string>
     <string name="speech_pitch">音调</string>
