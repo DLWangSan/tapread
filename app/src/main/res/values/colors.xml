@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="seed">#1B6B4A</color>
-    <color name="bg">#F3F7F4</color>
+    <color name="ink">#14201B</color>
+    <color name="ink_soft">#3D4F46</color>
+    <color name="muted">#6B7C73</color>
+    <color name="bg_top">#E8F2EC</color>
+    <color name="bg_bottom">#F7FAF8</color>
     <color name="surface">#FFFFFF</color>
-    <color name="on_surface">#1A2420</color>
-    <color name="muted">#5C6B64</color>
-    <color name="accent">#1B6B4A</color>
-    <color name="accent_soft">#D8EEE3</color>
-    <color name="ball">#1B6B4A</color>
-    <color name="ball_active">#0F4F36</color>
-    <color name="danger">#B42318</color>
+    <color name="surface_soft">#F1F6F3</color>
+    <color name="line">#D7E4DC</color>
+    <color name="accent">#0F7A4F</color>
+    <color name="accent_deep">#0A5A3A</color>
+    <color name="accent_soft">#D3EBDD</color>
+    <color name="warn_bg">#FFF4E5</color>
+    <color name="warn_text">#8A4B08</color>
+    <color name="ball">#0F7A4F</color>
+    <color name="ball_active">#0A5A3A</color>
+    <color name="on_accent">#FFFFFF</color>
 </resources>

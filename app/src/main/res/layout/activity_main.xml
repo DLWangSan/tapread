@@ -3,8 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
-    android:fillViewport="true">
+    android:background="@drawable/bg_screen"
+    android:fillViewport="true"
+    android:overScrollMode="never">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,56 +13,71 @@
         android:orientation="vertical"
         android:paddingHorizontal="20dp"
         android:paddingTop="28dp"
-        android:paddingBottom="32dp">
+        android:paddingBottom="36dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/app_name"
-            android:textColor="@color/on_surface"
-            android:textSize="36sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/Text.TapRead.Title"
+            android:textSize="40sp" />
 
         <TextView
             android:id="@+id/taglineText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/tagline"
-            android:textColor="@color/muted"
-            android:textSize="16sp" />
-
-        <TextView
-            android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_status"
-            android:padding="14dp"
-            android:textColor="@color/on_surface"
-            android:textSize="14sp" />
+            android:layout_marginTop="6dp"
+            android:text="@string/tagline"
+            android:textColor="@color/ink_soft"
+            android:textSize="16sp" />
 
-        <!-- Android 9 及以下：复制即读 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_status"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:id="@+id/statusTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/accent_deep"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:lineSpacingExtra="3dp"
+                android:textColor="@color/ink_soft"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Android 9 及以下 -->
         <LinearLayout
             android:id="@+id/sectionLegacyAutoRead"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
             android:orientation="vertical"
+            android:padding="18dp"
             android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/section_legacy_auto_read"
-                android:textColor="@color/on_surface"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textAppearance="@style/Text.TapRead.Section" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:text="@string/legacy_auto_read_hint"
                 android:textColor="@color/muted"
                 android:textSize="14sp" />
@@ -70,45 +86,46 @@
                 android:id="@+id/switchLegacyAutoRead"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="10dp"
                 android:text="@string/auto_read_switch" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnToggleClipboardMonitor"
+                style="@style/Widget.TapRead.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/start_clipboard_monitor" />
         </LinearLayout>
 
-        <!-- Android 10+：悬浮球 -->
+        <!-- Android 10+ 悬浮球 -->
         <LinearLayout
             android:id="@+id/sectionOverlay"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
             android:orientation="vertical"
+            android:padding="18dp"
             android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/section_overlay"
-                android:textColor="@color/on_surface"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textAppearance="@style/Text.TapRead.Section" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:text="@string/overlay_mode_hint"
                 android:textColor="@color/muted"
                 android:textSize="14sp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnOverlayPermission"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.TapRead.Button.Outlined"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
@@ -116,33 +133,34 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnToggleOverlay"
+                style="@style/Widget.TapRead.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/start_overlay" />
         </LinearLayout>
 
-        <!-- Android 10+：无障碍复制即读 -->
+        <!-- Android 10+ 无障碍 -->
         <LinearLayout
             android:id="@+id/sectionAccessibility"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
             android:orientation="vertical"
+            android:padding="18dp"
             android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/section_accessibility"
-                android:textColor="@color/on_surface"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textAppearance="@style/Text.TapRead.Section" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:text="@string/accessibility_hint"
                 android:textColor="@color/muted"
                 android:textSize="14sp" />
@@ -151,76 +169,160 @@
                 android:id="@+id/switchAutoRead"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="10dp"
                 android:text="@string/auto_read_switch" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnOpenAccessibility"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.TapRead.Button.Outlined"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/open_accessibility" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/section_tts"
-            android:textColor="@color/on_surface"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/speechRateLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/speech_rate"
-            android:textColor="@color/muted"
-            android:textSize="14sp" />
-
-        <com.google.android.material.slider.Slider
-            android:id="@+id/speechRateSlider"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:stepSize="0.1"
-            android:value="1.0"
-            android:valueFrom="0.5"
-            android:valueTo="1.8"
-            app:labelBehavior="gone" />
-
+        <!-- TTS -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/section_tts"
+                android:textAppearance="@style/Text.TapRead.Section" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/tts_section_hint"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/ttsEngineText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:textColor="@color/ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/ttsLangText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/ink_soft"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/ttsWarnText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_warn"
+                android:padding="12dp"
+                android:textColor="@color/warn_text"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/speechRateLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="@string/speech_rate"
+                android:textColor="@color/muted"
+                android:textSize="13sp" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/speechRateSlider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stepSize="0.1"
+                android:value="1.0"
+                android:valueFrom="0.5"
+                android:valueTo="1.8"
+                app:labelBehavior="gone" />
+
+            <TextView
+                android:id="@+id/speechPitchLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/speech_pitch"
+                android:textColor="@color/muted"
+                android:textSize="13sp" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/speechPitchSlider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stepSize="0.1"
+                android:value="1.0"
+                android:valueFrom="0.5"
+                android:valueTo="1.8"
+                app:labelBehavior="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnTestSpeak"
+                    style="@style/Widget.TapRead.Button.Tonal"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/test_speak" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnStopSpeak"
+                    style="@style/Widget.TapRead.Button.Outlined"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/stop_speak" />
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnTestSpeak"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="0dp"
+                android:id="@+id/btnOpenTtsSettings"
+                style="@style/Widget.TapRead.Button.Outlined"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
-                android:text="@string/test_speak" />
+                android:layout_marginTop="8dp"
+                android:text="@string/open_tts_settings" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnStopSpeak"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
+                android:id="@+id/btnInstallTtsData"
+                style="@style/Widget.TapRead.Button.Outlined"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/stop_speak" />
+                android:layout_marginTop="8dp"
+                android:text="@string/install_tts_data" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRefreshTts"
+                style="@style/Widget.TapRead.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/refresh_tts" />
         </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="18dp"
             android:text="@string/privacy_note"
             android:textColor="@color/muted"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>
