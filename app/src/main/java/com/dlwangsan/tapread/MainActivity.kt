@@ -3,10 +3,12 @@ package com.dlwangsan.tapread
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.dlwangsan.tapread.clipboard.ClipboardMonitorService
 import com.dlwangsan.tapread.databinding.ActivityMainBinding
 import com.dlwangsan.tapread.overlay.OverlayService
 import com.google.android.material.slider.Slider
@@ -25,24 +27,30 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.speechRateSlider.value = Prefs.speechRate
+        setupModeSections()
+        val rate = Prefs.speechRate
+        binding.speechRateSlider.value = rate
+        updateSpeechRateLabel(rate)
+
         binding.switchAutoRead.isChecked = Prefs.autoReadEnabled
-        updateSpeechRateLabel(Prefs.speechRate)
+        binding.switchLegacyAutoRead.isChecked = Prefs.autoReadEnabled
 
         binding.btnOverlayPermission.setOnClickListener {
             startActivity(PermissionHelper.overlayPermissionIntent(this))
         }
-
-        binding.btnToggleOverlay.setOnClickListener {
-            toggleOverlay()
-        }
-
+        binding.btnToggleOverlay.setOnClickListener { toggleOverlay() }
         binding.btnOpenAccessibility.setOnClickListener {
             startActivity(PermissionHelper.accessibilitySettingsIntent())
         }
+        binding.btnToggleClipboardMonitor.setOnClickListener { toggleClipboardMonitor() }
 
         binding.switchAutoRead.setOnCheckedChangeListener { _, checked ->
             Prefs.autoReadEnabled = checked
+            binding.switchLegacyAutoRead.isChecked = checked
+        }
+        binding.switchLegacyAutoRead.setOnCheckedChangeListener { _, checked ->
+            Prefs.autoReadEnabled = checked
+            binding.switchAutoRead.isChecked = checked
         }
 
         binding.speechRateSlider.addOnChangeListener { _: Slider, value: Float, fromUser: Boolean ->
@@ -53,12 +61,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnTestSpeak.setOnClickListener {
-            TtsManager.speak(getString(R.string.test_sample))
+            val sample = if (DeviceCapabilities.canBackgroundClipboardRead) {
+                getString(R.string.test_sample_legacy)
+            } else {
+                getString(R.string.test_sample)
+            }
+            TtsManager.speak(sample)
         }
-
-        binding.btnStopSpeak.setOnClickListener {
-            TtsManager.stop()
-        }
+        binding.btnStopSpeak.setOnClickListener { TtsManager.stop() }
 
         maybeRequestNotificationPermission()
     }
@@ -66,6 +76,16 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshUi()
+    }
+
+    private fun setupModeSections() {
+        val legacy = DeviceCapabilities.canBackgroundClipboardRead
+        binding.sectionLegacyAutoRead.visibility = if (legacy) View.VISIBLE else View.GONE
+        binding.sectionOverlay.visibility = if (legacy) View.GONE else View.VISIBLE
+        binding.sectionAccessibility.visibility = if (legacy) View.GONE else View.VISIBLE
+        binding.taglineText.setText(
+            if (legacy) R.string.tagline_legacy else R.string.tagline
+        )
     }
 
     private fun maybeRequestNotificationPermission() {
@@ -101,26 +121,72 @@ class MainActivity : AppCompatActivity() {
         binding.root.postDelayed({ refreshUi() }, 400)
     }
 
+    private fun toggleClipboardMonitor() {
+        if (ClipboardMonitorService.isRunning) {
+            ClipboardMonitorService.stop(this)
+            refreshUi()
+            return
+        }
+        ClipboardMonitorService.start(this)
+        binding.root.postDelayed({ refreshUi() }, 400)
+    }
+
     private fun refreshUi() {
+        val legacy = DeviceCapabilities.canBackgroundClipboardRead
         val overlayOn = OverlayService.isRunning
+        val monitorOn = ClipboardMonitorService.isRunning
         val a11yOn = PermissionHelper.isAccessibilityEnabled(this)
 
         binding.statusText.text = buildString {
-            append(if (overlayOn) getString(R.string.status_overlay_on) else getString(R.string.status_overlay_off))
+            append("系统：Android ${android.os.Build.VERSION.RELEASE}")
             append('\n')
-            append(if (a11yOn) getString(R.string.status_a11y_on) else getString(R.string.status_a11y_off))
-            append('\n')
-            append(
-                if (PermissionHelper.canDrawOverlays(this@MainActivity)) {
-                    "悬浮窗权限：已授予"
-                } else {
-                    "悬浮窗权限：未授予"
-                }
-            )
+            if (legacy) {
+                append(
+                    if (monitorOn) {
+                        getString(R.string.status_clipboard_monitor_on)
+                    } else {
+                        getString(R.string.status_clipboard_monitor_off)
+                    }
+                )
+                append('\n')
+                append(getString(R.string.status_mode_legacy))
+            } else {
+                append(
+                    if (overlayOn) {
+                        getString(R.string.status_overlay_on)
+                    } else {
+                        getString(R.string.status_overlay_off)
+                    }
+                )
+                append('\n')
+                append(
+                    if (a11yOn) {
+                        getString(R.string.status_a11y_on)
+                    } else {
+                        getString(R.string.status_a11y_off)
+                    }
+                )
+                append('\n')
+                append(
+                    if (PermissionHelper.canDrawOverlays(this@MainActivity)) {
+                        "悬浮窗权限：已授予"
+                    } else {
+                        "悬浮窗权限：未授予"
+                    }
+                )
+                append('\n')
+                append(getString(R.string.status_mode_modern))
+            }
         }
 
         binding.btnToggleOverlay.text =
             if (overlayOn) getString(R.string.stop_overlay) else getString(R.string.start_overlay)
+        binding.btnToggleClipboardMonitor.text =
+            if (monitorOn) {
+                getString(R.string.stop_clipboard_monitor)
+            } else {
+                getString(R.string.start_clipboard_monitor)
+            }
     }
 
     private fun updateSpeechRateLabel(rate: Float) {

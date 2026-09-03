@@ -23,6 +23,7 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/taglineText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
@@ -40,61 +41,127 @@
             android:textColor="@color/on_surface"
             android:textSize="14sp" />
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Android 9 及以下：复制即读 -->
+        <LinearLayout
+            android:id="@+id/sectionLegacyAutoRead"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
-            android:text="@string/section_overlay"
-            android:textColor="@color/on_surface"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnOverlayPermission"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/section_legacy_auto_read"
+                android:textColor="@color/on_surface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/legacy_auto_read_hint"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchLegacyAutoRead"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/auto_read_switch" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnToggleClipboardMonitor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/start_clipboard_monitor" />
+        </LinearLayout>
+
+        <!-- Android 10+：悬浮球 -->
+        <LinearLayout
+            android:id="@+id/sectionOverlay"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/overlay_permission" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnToggleOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/start_overlay" />
-
-        <TextView
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
-            android:text="@string/section_accessibility"
-            android:textColor="@color/on_surface"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <TextView
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/section_overlay"
+                android:textColor="@color/on_surface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/overlay_mode_hint"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOverlayPermission"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/overlay_permission" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnToggleOverlay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/start_overlay" />
+        </LinearLayout>
+
+        <!-- Android 10+：无障碍复制即读 -->
+        <LinearLayout
+            android:id="@+id/sectionAccessibility"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/accessibility_hint"
-            android:textColor="@color/muted"
-            android:textSize="14sp" />
+            android:layout_marginTop="28dp"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchAutoRead"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/auto_read_switch" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/section_accessibility"
+                android:textColor="@color/on_surface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnOpenAccessibility"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/open_accessibility" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/accessibility_hint"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchAutoRead"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/auto_read_switch" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOpenAccessibility"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/open_accessibility" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
@@ -119,6 +186,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:stepSize="0.1"
+            android:value="1.0"
             android:valueFrom="0.5"
             android:valueTo="1.8"
             app:labelBehavior="gone" />
