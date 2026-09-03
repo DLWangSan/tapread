@@ -12,6 +12,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import com.dlwangsan.tapread.ClipboardHelper
 import com.dlwangsan.tapread.Prefs
@@ -19,21 +20,21 @@ import com.dlwangsan.tapread.TextCleaner
 import com.dlwangsan.tapread.TtsManager
 
 /**
- * Android 10+ 复制即读：
- * 1) 监听剪贴板变化
- * 2) 监听“已复制”等无障碍事件
- * 3) 通过 TYPE_ACCESSIBILITY_OVERLAY 短暂获焦后读取剪贴板（绕过后台剪贴板限制）
+ * 只在剪贴板内容真正变化后朗读，避免选中文字弹出「复制」菜单时误读上一次内容。
  */
 class TapReadAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var lastSpoken: String? = null
     private var lastSpokenAt: Long = 0L
     private var lastScheduleAt: Long = 0L
+    private var lastKnownClipboard: String? = null
+    private var clipboardSnapshotReady = false
     private var reading = false
+    private var overlayView: View? = null
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
         Log.i(TAG, "clipboard listener fired")
-        scheduleClipboardRead("clip-listener")
+        scheduleClipboardRead("clip-listener", delayMs = 80)
     }
 
     private val readRunnable = Runnable { readClipboardAndSpeak() }
@@ -49,6 +50,11 @@ class TapReadAccessibilityService : AccessibilityService() {
         runCatching { clipboard.addPrimaryClipChangedListener(clipboardListener) }
             .onFailure { Log.e(TAG, "addPrimaryClipChangedListener failed", it) }
 
+        // Baseline current clipboard so we never speak stale content on first false trigger.
+        handler.postDelayed({
+            snapshotClipboardBaseline()
+        }, 200)
+
         Log.i(TAG, "accessibility service connected, autoRead=${Prefs.autoReadEnabled}")
     }
 
@@ -56,11 +62,7 @@ class TapReadAccessibilityService : AccessibilityService() {
         serviceInfo = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED or
                 AccessibilityEvent.TYPE_ANNOUNCEMENT or
-                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
-                AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED or
-                AccessibilityEvent.TYPE_VIEW_CLICKED or
-                AccessibilityEvent.TYPE_VIEW_LONG_CLICKED
+                AccessibilityEvent.TYPE_VIEW_CLICKED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
@@ -76,31 +78,17 @@ class TapReadAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_ANNOUNCEMENT -> {
                 val text = eventText(event)
                 if (looksLikeCopyFeedback(text)) {
-                    Log.i(TAG, "copy-like announcement: $text")
-                    scheduleClipboardRead("announce")
+                    Log.i(TAG, "copy feedback: $text")
+                    scheduleClipboardRead("announce", delayMs = 120)
                 }
             }
 
-            AccessibilityEvent.TYPE_VIEW_CLICKED,
-            AccessibilityEvent.TYPE_VIEW_LONG_CLICKED -> {
-                val text = eventText(event)
-                val desc = event.contentDescription?.toString().orEmpty()
-                if (looksLikeCopyAction(text) || looksLikeCopyAction(desc)) {
-                    Log.i(TAG, "copy-like click: text=$text desc=$desc")
-                    scheduleClipboardRead("click", delayMs = 180)
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> {
+                // Only when the clicked node itself is a Copy action — not when menu is merely shown.
+                if (isCopyActionNode(event)) {
+                    Log.i(TAG, "copy action clicked")
+                    scheduleClipboardRead("copy-click", delayMs = 280)
                 }
-            }
-
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                val text = eventText(event)
-                if (looksLikeCopyFeedback(text) || looksLikeCopyAction(text)) {
-                    scheduleClipboardRead("window", delayMs = 180)
-                }
-            }
-
-            AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED -> {
-                // Weak signal only; many apps fire this while selecting before copy.
             }
         }
     }
@@ -115,14 +103,24 @@ class TapReadAccessibilityService : AccessibilityService() {
             val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.removePrimaryClipChangedListener(clipboardListener)
         }
+        removeOverlay()
         if (instance === this) instance = null
         super.onDestroy()
     }
 
-    private fun scheduleClipboardRead(reason: String, delayMs: Long = 120) {
+    private fun snapshotClipboardBaseline() {
+        readClipboardRaw { text ->
+            lastKnownClipboard = text?.let { TextCleaner.clean(it) }
+            clipboardSnapshotReady = true
+            Log.i(TAG, "baseline clipboard len=${lastKnownClipboard?.length ?: -1}")
+        }
+    }
+
+    private fun scheduleClipboardRead(reason: String, delayMs: Long) {
         if (!Prefs.autoReadEnabled) return
         val now = System.currentTimeMillis()
-        if (now - lastScheduleAt < 250) return
+        // Allow copy-click / clip-listener to supersede an earlier schedule.
+        if (now - lastScheduleAt < 80 && reason == "announce") return
         lastScheduleAt = now
         Log.i(TAG, "schedule read reason=$reason delay=$delayMs")
         handler.removeCallbacks(readRunnable)
@@ -132,25 +130,45 @@ class TapReadAccessibilityService : AccessibilityService() {
     private fun readClipboardAndSpeak() {
         if (!Prefs.autoReadEnabled || reading) return
         reading = true
-        try {
-            val direct = ClipboardHelper.readText(this)
-            if (!direct.isNullOrBlank()) {
-                speakIfNeeded(direct, "direct")
-                return
+        readClipboardRaw { text ->
+            try {
+                if (text.isNullOrBlank()) return@readClipboardRaw
+                val cleaned = TextCleaner.clean(text)
+                if (cleaned.isBlank()) return@readClipboardRaw
+
+                if (!clipboardSnapshotReady) {
+                    lastKnownClipboard = cleaned
+                    clipboardSnapshotReady = true
+                    Log.i(TAG, "skip speak before baseline")
+                    return@readClipboardRaw
+                }
+
+                if (cleaned == lastKnownClipboard) {
+                    Log.i(TAG, "clipboard unchanged, skip speak")
+                    return@readClipboardRaw
+                }
+
+                lastKnownClipboard = cleaned
+                speakIfNeeded(cleaned)
+            } finally {
+                reading = false
             }
-            readViaAccessibilityOverlay()
-        } finally {
-            // overlay path clears reading itself; for direct path clear now
-            if (overlayView == null) reading = false
         }
     }
 
-    private var overlayView: View? = null
+    private fun readClipboardRaw(onResult: (String?) -> Unit) {
+        val direct = ClipboardHelper.readText(this)
+        if (!direct.isNullOrBlank()) {
+            onResult(direct)
+            return
+        }
+        readViaAccessibilityOverlay(onResult)
+    }
 
-    private fun readViaAccessibilityOverlay() {
+    private fun readViaAccessibilityOverlay(onResult: (String?) -> Unit) {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        removeOverlay()
         val view = FrameLayout(this).apply {
-            // 1px focusable overlay — enough to satisfy clipboard focus check.
             isFocusable = true
             isFocusableInTouchMode = true
         }
@@ -177,38 +195,87 @@ class TapReadAccessibilityService : AccessibilityService() {
             wm.addView(view, params)
             view.requestFocus()
             handler.postDelayed({
-                try {
-                    val text = ClipboardHelper.readText(this)
-                    Log.i(TAG, "overlay read length=${text?.length ?: -1}")
-                    if (!text.isNullOrBlank()) {
-                        speakIfNeeded(text, "overlay")
-                    }
-                } finally {
-                    runCatching { wm.removeView(view) }
-                    overlayView = null
-                    reading = false
-                }
+                val text = ClipboardHelper.readText(this)
+                removeOverlay()
+                onResult(text)
             }, 80)
         } catch (t: Throwable) {
             Log.e(TAG, "accessibility overlay failed", t)
-            overlayView = null
-            reading = false
+            removeOverlay()
+            onResult(null)
         }
     }
 
-    private fun speakIfNeeded(raw: String, source: String) {
-        if (TextCleaner.shouldSkipAutoRead(raw)) {
-            Log.i(TAG, "skip text from $source")
+    private fun removeOverlay() {
+        val view = overlayView ?: return
+        overlayView = null
+        runCatching {
+            (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(view)
+        }
+    }
+
+    private fun speakIfNeeded(cleaned: String) {
+        if (TextCleaner.shouldSkipAutoRead(cleaned)) {
+            Log.i(TAG, "skip text by filter")
             return
         }
-        val cleaned = TextCleaner.clean(raw)
         val now = System.currentTimeMillis()
-        if (cleaned == lastSpoken && now - lastSpokenAt < 1500) return
+        if (cleaned == lastSpoken && now - lastSpokenAt < 1200) return
         lastSpoken = cleaned
         lastSpokenAt = now
-        Log.i(TAG, "speak from $source: ${cleaned.take(40)}")
+        Log.i(TAG, "speak: ${cleaned.take(40)}")
         TtsManager.init(applicationContext)
         TtsManager.speak(cleaned)
+    }
+
+    private fun isCopyActionNode(event: AccessibilityEvent): Boolean {
+        val source = event.source
+        try {
+            if (source != null && nodeLooksLikeCopyAction(source)) return true
+        } finally {
+            source?.recycle()
+        }
+
+        // Fallback: event text/contentDescription themselves are exactly copy actions.
+        val label = buildString {
+            event.text?.forEach { append(it?.toString().orEmpty()).append(' ') }
+            event.contentDescription?.let { append(it) }
+        }.trim()
+        return isExactCopyLabel(label)
+    }
+
+    private fun nodeLooksLikeCopyAction(node: AccessibilityNodeInfo): Boolean {
+        val candidates = listOfNotNull(
+            node.text?.toString(),
+            node.contentDescription?.toString(),
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) node.hintText?.toString() else null,
+            node.viewIdResourceName
+        )
+        if (candidates.any { isExactCopyLabel(it) || isCopyViewId(it) }) return true
+
+        // Some OEMs put "复制" on a child TextView.
+        for (i in 0 until node.childCount.coerceAtMost(6)) {
+            val child = node.getChild(i) ?: continue
+            try {
+                val childText = child.text?.toString().orEmpty()
+                val childDesc = child.contentDescription?.toString().orEmpty()
+                if (isExactCopyLabel(childText) || isExactCopyLabel(childDesc)) return true
+            } finally {
+                child.recycle()
+            }
+        }
+        return false
+    }
+
+    private fun isExactCopyLabel(raw: String): Boolean {
+        val t = raw.trim().lowercase()
+        if (t.isEmpty()) return false
+        return EXACT_COPY_LABELS.any { t == it }
+    }
+
+    private fun isCopyViewId(raw: String): Boolean {
+        val t = raw.lowercase()
+        return t.contains(":id/copy") || t.endsWith("/copy") || t.contains("copy_btn")
     }
 
     private fun eventText(event: AccessibilityEvent): String {
@@ -224,20 +291,15 @@ class TapReadAccessibilityService : AccessibilityService() {
         return COPY_FEEDBACK.any { t.contains(it) }
     }
 
-    private fun looksLikeCopyAction(text: String): Boolean {
-        if (text.isBlank()) return false
-        val t = text.trim().lowercase()
-        return COPY_ACTIONS.any { t == it || t.contains(it) }
-    }
-
     companion object {
         private const val TAG = "TapReadA11y"
 
         private val COPY_FEEDBACK = listOf(
-            "已复制", "复制成功", "copied", "copy to clipboard", "copied to clipboard", "已拷贝"
+            "已复制", "复制成功", "copied to clipboard", "copied", "已拷贝"
         )
-        private val COPY_ACTIONS = listOf(
-            "复制", "拷贝", "copy", "copy text", "复制文字", "复制链接"
+
+        private val EXACT_COPY_LABELS = listOf(
+            "复制", "拷贝", "copy", "copy text", "复制文字", "复制链接", "复制全部"
         )
 
         @Volatile
