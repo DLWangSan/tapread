@@ -82,6 +82,10 @@ Requirements: JDK 17+, Android SDK 35.
 > via [star-history-action](https://github.com/narayann7/star-history-action) with the repo’s own token.
 
 <!-- star-history:start -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/star-history/star-history-dark.svg">
+  <img alt="Star history" src="assets/star-history/star-history-light.svg">
+</picture>
 <!-- star-history:end -->
 
 ## License
