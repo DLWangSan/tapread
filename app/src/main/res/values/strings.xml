@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">点读</string>
+    <string name="app_name_en">TapRead</string>
+    <string name="tagline">复制文字，点一下就能听</string>
+    <string name="accessibility_service_description">点读用无障碍服务监听复制操作，复制后自动朗读文字。不会读取屏幕内容，仅用于剪贴板朗读。</string>
+    <string name="overlay_channel_name">悬浮球服务</string>
+    <string name="overlay_notification_title">点读悬浮球运行中</string>
+    <string name="overlay_notification_text">复制文字后点悬浮球即可朗读</string>
+    <string name="section_overlay">模式一：复制 + 悬浮球</string>
+    <string name="section_accessibility">模式二：无障碍复制即读</string>
+    <string name="section_tts">朗读设置</string>
+    <string name="overlay_permission">允许显示在其他应用上层</string>
+    <string name="overlay_permission_hint">用于显示悬浮球</string>
+    <string name="start_overlay">开启悬浮球</string>
+    <string name="stop_overlay">关闭悬浮球</string>
+    <string name="open_accessibility">打开无障碍设置</string>
+    <string name="accessibility_hint">在系统设置中启用「点读」，复制后会自动朗读</string>
+    <string name="auto_read_switch">启用复制即读</string>
+    <string name="speech_rate">语速</string>
+    <string name="test_speak">试听一段</string>
+    <string name="stop_speak">停止朗读</string>
+    <string name="privacy_note">剪贴板内容仅在本机用于朗读，不会上传。</string>
+    <string name="status_overlay_on">悬浮球：已开启</string>
+    <string name="status_overlay_off">悬浮球：未开启</string>
+    <string name="status_a11y_on">无障碍：已开启</string>
+    <string name="status_a11y_off">无障碍：未开启</string>
+    <string name="need_overlay_permission">请先授予「显示在其他应用上层」权限</string>
+    <string name="need_notification_permission">请允许通知权限，以便悬浮球在后台保持运行</string>
+    <string name="clipboard_empty">剪贴板没有文字</string>
+    <string name="speaking">正在朗读…</string>
+    <string name="test_sample">你好，我是点读。复制文字后点一下悬浮球，我就能读给你听。</string>
+</resources>

@@ -1,0 +1,16 @@
+# Built artifacts
+/.gradle/
+/build/
+/app/build/
+/local.properties
+/.idea/
+*.iml
+*.apk
+*.ap_
+*.dex
+*.class
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+*.hprof

@@ -1,0 +1,1 @@
+# TapRead ProGuard rules

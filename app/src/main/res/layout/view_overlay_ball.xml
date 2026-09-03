@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="72dp"
+    android:layout_height="72dp">
+
+    <ImageButton
+        android:id="@+id/btnBall"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_ball"
+        android:contentDescription="@string/app_name"
+        android:padding="14dp"
+        android:src="@drawable/ic_speaker"
+        android:scaleType="fitCenter" />
+</FrameLayout>

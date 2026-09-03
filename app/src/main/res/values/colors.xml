@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="seed">#1B6B4A</color>
+    <color name="bg">#F3F7F4</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="on_surface">#1A2420</color>
+    <color name="muted">#5C6B64</color>
+    <color name="accent">#1B6B4A</color>
+    <color name="accent_soft">#D8EEE3</color>
+    <color name="ball">#1B6B4A</color>
+    <color name="ball_active">#0F4F36</color>
+    <color name="danger">#B42318</color>
+</resources>
