@@ -7,6 +7,25 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Android 11+ package visibility: required to discover/bind TTS engines -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.tts.engine.INSTALL_TTS_DATA" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.tts.engine.CHECK_TTS_DATA" />
+        </intent>
+        <intent>
+            <action android:name="com.android.settings.TTS_SETTINGS" />
+        </intent>
+        <package android:name="com.google.android.tts" />
+        <package android:name="com.iflytek.speechcloud" />
+        <package android:name="com.samsung.SMT" />
+    </queries>
+
     <application
         android:name=".TapReadApp"
         android:allowBackup="true"

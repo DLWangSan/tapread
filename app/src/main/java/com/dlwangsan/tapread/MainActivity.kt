@@ -37,12 +37,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Returning from system TTS settings — re-check engines.
-        if (TtsManager.status == TtsManager.Status.NO_ENGINE ||
-            TtsManager.status == TtsManager.Status.LANG_MISSING ||
-            TtsManager.status == TtsManager.Status.ERROR
-        ) {
-            TtsManager.reinit(this)
+        when (TtsManager.status) {
+            TtsManager.Status.UNINITIALIZED,
+            TtsManager.Status.NO_ENGINE,
+            TtsManager.Status.ERROR -> TtsManager.reinit(this)
+            TtsManager.Status.LANG_MISSING -> {
+                // Keep current engine; just refresh labels after user may have installed data.
+                refreshTtsUi(TtsManager.status)
+            }
+            else -> Unit
         }
         refreshUi()
         refreshTtsUi(TtsManager.status)

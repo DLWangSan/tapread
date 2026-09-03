@@ -5,14 +5,20 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import android.util.Log
 import java.util.Locale
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
-object TtsManager : TextToSpeech.OnInitListener {
+object TtsManager {
+    private const val TAG = "TapReadTTS"
+
     enum class Status {
         UNINITIALIZED,
         INITIALIZING,
@@ -28,18 +34,22 @@ object TtsManager : TextToSpeech.OnInitListener {
         val isDefault: Boolean
     )
 
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
     private var tts: TextToSpeech? = null
     private val ready = AtomicBoolean(false)
     private val pending = CopyOnWriteArrayList<String>()
     private var speakingListener: ((Boolean) -> Unit)? = null
     private var statusListener: ((Status) -> Unit)? = null
+    private val initGeneration = AtomicInteger(0)
+    private var fallbackEngineQueue: ArrayDeque<String> = ArrayDeque()
+    private var currentEnginePackage: String? = null
 
     @Volatile
     var status: Status = Status.UNINITIALIZED
         private set(value) {
             field = value
-            statusListener?.invoke(value)
+            mainHandler.post { statusListener?.invoke(value) }
         }
 
     @Volatile
@@ -52,38 +62,104 @@ object TtsManager : TextToSpeech.OnInitListener {
 
     fun init(context: Context) {
         appContext = context.applicationContext
-        if (tts != null || status == Status.INITIALIZING) return
-        status = Status.INITIALIZING
-        val preferred = Prefs.preferredEngine
-        tts = if (preferred.isNullOrBlank()) {
-            TextToSpeech(context.applicationContext, this)
-        } else {
-            TextToSpeech(context.applicationContext, this, preferred)
-        }
+        if (ready.get() && tts != null) return
+        if (status == Status.INITIALIZING && tts != null) return
+        startBind(context.applicationContext, Prefs.preferredEngine)
     }
 
     fun reinit(context: Context, enginePackage: String? = null) {
-        shutdown()
         if (!enginePackage.isNullOrBlank()) {
             Prefs.preferredEngine = enginePackage
         }
-        init(context)
+        shutdownInternal(keepStatus = Status.INITIALIZING)
+        startBind(context.applicationContext, Prefs.preferredEngine)
     }
 
-    override fun onInit(resultCode: Int) {
+    private fun startBind(context: Context, preferred: String?) {
+        appContext = context.applicationContext
+        status = Status.INITIALIZING
+        ready.set(false)
+        languageLabel = "-"
+
+        val engines = listEngines(context)
+        fallbackEngineQueue.clear()
+
+        val ordered = LinkedHashSet<String>()
+        if (!preferred.isNullOrBlank()) ordered += preferred
+        engines.firstOrNull { it.isDefault }?.name?.let { ordered += it }
+        engines.forEach { ordered += it.name }
+        // Common engines as last-resort package names even if query is empty.
+        ordered += "com.google.android.tts"
+        ordered += "com.iflytek.speechcloud"
+        ordered += "com.baidu.duersdk.opensdk"
+        ordered += "com.svox.pico"
+
+        fallbackEngineQueue.addAll(ordered)
+        Log.i(TAG, "startBind preferred=$preferred engines=${engines.map { it.name }} queue=$fallbackEngineQueue")
+
+        // First try system default constructor (no package), then explicit packages.
+        bindNext(context, tryDefaultConstructorFirst = true)
+    }
+
+    private fun bindNext(context: Context, tryDefaultConstructorFirst: Boolean) {
+        val generation = initGeneration.incrementAndGet()
+        shutdownTtsInstanceOnly()
+
+        val listener = TextToSpeech.OnInitListener { resultCode ->
+            mainHandler.post { onEngineInit(generation, resultCode) }
+        }
+
+        tts = try {
+            if (tryDefaultConstructorFirst) {
+                currentEnginePackage = null
+                TextToSpeech(context.applicationContext, listener)
+            } else {
+                val next = fallbackEngineQueue.removeFirstOrNull()
+                if (next == null) {
+                    ready.set(false)
+                    engineLabel = "未检测到可用语音引擎"
+                    status = Status.NO_ENGINE
+                    return
+                }
+                currentEnginePackage = next
+                Log.i(TAG, "Trying engine package=$next")
+                TextToSpeech(context.applicationContext, listener, next)
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed creating TextToSpeech", t)
+            // Continue fallback.
+            bindNext(context, tryDefaultConstructorFirst = false)
+            return
+        }
+    }
+
+    private fun onEngineInit(generation: Int, resultCode: Int) {
+        if (generation != initGeneration.get()) {
+            Log.w(TAG, "Ignore stale onInit gen=$generation current=${initGeneration.get()}")
+            return
+        }
         val engine = tts
         if (engine == null) {
             status = Status.ERROR
             return
         }
+
         if (resultCode != TextToSpeech.SUCCESS) {
-            ready.set(false)
-            status = Status.NO_ENGINE
-            engineLabel = "未检测到可用语音引擎"
+            Log.w(TAG, "onInit failed code=$resultCode package=$currentEnginePackage")
+            val ctx = appContext
+            if (ctx != null) {
+                // If default constructor failed, continue with explicit packages.
+                bindNext(ctx, tryDefaultConstructorFirst = false)
+            } else {
+                ready.set(false)
+                status = Status.NO_ENGINE
+                engineLabel = "未检测到可用语音引擎"
+            }
             return
         }
 
-        engineLabel = resolveEngineLabel(engine)
+        engineLabel = resolveEngineLabel(engine, currentEnginePackage)
+        currentEnginePackage?.let { Prefs.preferredEngine = it }
         applyAudioAttributes(engine)
         engine.setSpeechRate(Prefs.speechRate)
         engine.setPitch(Prefs.speechPitch)
@@ -118,13 +194,8 @@ object TtsManager : TextToSpeech.OnInitListener {
 
         when (langResult) {
             TextToSpeech.LANG_MISSING_DATA -> {
-                ready.set(false)
+                ready.set(true) // still allow speak attempts; some OEMs mis-report
                 status = Status.LANG_MISSING
-            }
-            TextToSpeech.LANG_NOT_SUPPORTED -> {
-                // Still allow speak; some engines accept Chinese text without reporting support.
-                ready.set(true)
-                status = Status.READY
             }
             else -> {
                 ready.set(true)
@@ -132,6 +203,7 @@ object TtsManager : TextToSpeech.OnInitListener {
             }
         }
 
+        Log.i(TAG, "TTS ready engine=$engineLabel lang=$languageLabel status=$status")
         flushPending()
     }
 
@@ -149,29 +221,34 @@ object TtsManager : TextToSpeech.OnInitListener {
     fun listEngines(context: Context): List<EngineInfo> {
         val pm = context.packageManager
         val intent = Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE)
-        val services = pm.queryIntentServices(intent, PackageManager.MATCH_ALL)
+        val services = runCatching {
+            pm.queryIntentServices(intent, PackageManager.MATCH_ALL)
+        }.getOrDefault(emptyList())
+
         val defaultEngine = android.provider.Settings.Secure.getString(
             context.contentResolver,
-            "tts_default_synth"
-        )
-        if (services.isNullOrEmpty()) {
-            val live = tts?.engines.orEmpty()
-            return live.map {
-                EngineInfo(
-                    name = it.name,
-                    label = it.label?.toString() ?: it.name,
-                    isDefault = it.name == defaultEngine || it.name == tts?.defaultEngine
-                )
-            }
-        }
-        return services.map {
-            val pkg = it.serviceInfo.packageName
+            SettingsSecureTts.DEFAULT_SYNTH
+        ) ?: runCatching { tts?.defaultEngine }.getOrNull()
+
+        val fromQuery = services.mapNotNull {
+            val pkg = it.serviceInfo?.packageName ?: return@mapNotNull null
             EngineInfo(
                 name = pkg,
                 label = it.loadLabel(pm)?.toString() ?: pkg,
                 isDefault = pkg == defaultEngine
             )
         }
+
+        if (fromQuery.isNotEmpty()) return fromQuery.distinctBy { it.name }
+
+        val live = tts?.engines.orEmpty().map {
+            EngineInfo(
+                name = it.name,
+                label = it.label?.toString() ?: it.name,
+                isDefault = it.name == defaultEngine
+            )
+        }
+        return live.distinctBy { it.name }
     }
 
     fun applySpeechRate(rate: Float) {
@@ -188,7 +265,7 @@ object TtsManager : TextToSpeech.OnInitListener {
         val text = TextCleaner.clean(raw)
         if (text.isBlank()) return false
 
-        if (tts == null) {
+        if (tts == null || status == Status.UNINITIALIZED) {
             appContext?.let { init(it) }
         }
 
@@ -197,18 +274,20 @@ object TtsManager : TextToSpeech.OnInitListener {
                 pending += text
                 return true
             }
-            return false
+            // LANG_MISSING: still try
+            if (status != Status.LANG_MISSING) return false
         }
 
         val engine = tts ?: return false
-        engine.setSpeechRate(Prefs.speechRate)
-        engine.setPitch(Prefs.speechPitch)
-        val mode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
-        val params = Bundle().apply {
-            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "tapread-${System.currentTimeMillis()}")
-        }
-        val result = engine.speak(text, mode, params, "tapread-${System.currentTimeMillis()}")
-        return result == TextToSpeech.SUCCESS
+        return runCatching {
+            engine.setSpeechRate(Prefs.speechRate)
+            engine.setPitch(Prefs.speechPitch)
+            val mode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+            val utteranceId = "tapread-${System.currentTimeMillis()}"
+            val params = Bundle()
+            val result = engine.speak(text, mode, params, utteranceId)
+            result == TextToSpeech.SUCCESS
+        }.getOrDefault(false)
     }
 
     fun stop() {
@@ -218,18 +297,34 @@ object TtsManager : TextToSpeech.OnInitListener {
     }
 
     fun shutdown() {
+        shutdownInternal(keepStatus = Status.UNINITIALIZED)
+    }
+
+    private fun shutdownInternal(keepStatus: Status) {
+        initGeneration.incrementAndGet()
         pending.clear()
         ready.set(false)
-        status = Status.UNINITIALIZED
-        tts?.stop()
-        tts?.shutdown()
+        shutdownTtsInstanceOnly()
+        status = keepStatus
+        if (keepStatus == Status.UNINITIALIZED) {
+            engineLabel = "未初始化"
+            languageLabel = "-"
+        }
+    }
+
+    private fun shutdownTtsInstanceOnly() {
+        val old = tts
         tts = null
+        runCatching {
+            old?.stop()
+            old?.shutdown()
+        }
     }
 
     fun openSystemTtsSettings(context: Context): Boolean {
         val intents = listOf(
             Intent("com.android.settings.TTS_SETTINGS"),
-            Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            Intent(android.provider.Settings.ACTION_SETTINGS)
         )
         for (intent in intents) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -243,18 +338,6 @@ object TtsManager : TextToSpeech.OnInitListener {
 
     fun openInstallTtsData(context: Context): Boolean {
         val intent = Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        return if (intent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(intent)
-            true
-        } else {
-            false
-        }
-    }
-
-    fun openCheckTtsData(context: Context): Boolean {
-        val intent = Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         return if (intent.resolveActivity(context.packageManager) != null) {
@@ -279,7 +362,7 @@ object TtsManager : TextToSpeech.OnInitListener {
             .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
-        engine.setAudioAttributes(attrs)
+        runCatching { engine.setAudioAttributes(attrs) }
     }
 
     private fun pickChineseLanguage(engine: TextToSpeech): Int {
@@ -292,16 +375,16 @@ object TtsManager : TextToSpeech.OnInitListener {
         )
         var best = TextToSpeech.LANG_NOT_SUPPORTED
         for (locale in candidates) {
-            val result = engine.isLanguageAvailable(locale)
+            val result = runCatching { engine.isLanguageAvailable(locale) }
+                .getOrDefault(TextToSpeech.LANG_NOT_SUPPORTED)
             if (result >= TextToSpeech.LANG_AVAILABLE) {
-                engine.language = locale
+                runCatching { engine.language = locale }
                 preferChineseVoice(engine, locale)
                 return result
             }
             if (result > best) best = result
         }
-        // Last resort: set anyway.
-        engine.language = Locale.SIMPLIFIED_CHINESE
+        runCatching { engine.language = Locale.SIMPLIFIED_CHINESE }
         return best
     }
 
@@ -314,19 +397,24 @@ object TtsManager : TextToSpeech.OnInitListener {
             it.locale.language.equals(locale.language, ignoreCase = true)
         }
         if (match != null) {
-            engine.voice = match
+            runCatching { engine.voice = match }
         }
     }
 
-    private fun resolveEngineLabel(engine: TextToSpeech): String {
-        val current = runCatching { engine.defaultEngine }.getOrNull()
-        val info = engine.engines?.firstOrNull { it.name == current }
-            ?: engine.engines?.firstOrNull()
+    private fun resolveEngineLabel(engine: TextToSpeech, packageName: String?): String {
+        val engines = runCatching { engine.engines }.getOrNull().orEmpty()
+        val current = packageName
+            ?: runCatching { engine.defaultEngine }.getOrNull()
+        val info = engines.firstOrNull { it.name == current } ?: engines.firstOrNull()
         val label = info?.label?.toString()
         return when {
             !label.isNullOrBlank() -> label
             !current.isNullOrBlank() -> current
             else -> "系统默认引擎"
         }
+    }
+
+    private object SettingsSecureTts {
+        const val DEFAULT_SYNTH = "tts_default_synth"
     }
 }

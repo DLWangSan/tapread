@@ -7,7 +7,8 @@ class TapReadApp : Application() {
         super.onCreate()
         instance = this
         Prefs.init(this)
-        TtsManager.init(this)
+        // Don't init TTS here: some OEMs fail when binding from Application.
+        // MainActivity / services will init when needed.
     }
 
     companion object {

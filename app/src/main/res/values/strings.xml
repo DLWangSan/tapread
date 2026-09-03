@@ -51,8 +51,8 @@
     <string name="tts_lang_label">语言：%1$s</string>
     <string name="tts_status_ready">语音引擎就绪，可用媒体音量试听</string>
     <string name="tts_status_initializing">正在连接系统语音引擎…</string>
-    <string name="tts_status_no_engine">未检测到语音引擎。雷电等模拟器常需先安装 Google 文字转语音 / 中文语音包。</string>
-    <string name="tts_status_lang_missing">引擎已找到，但缺少中文语音数据，请下载语言包。</string>
+    <string name="tts_status_no_engine">暂时连不上语音引擎。请点「重新检测引擎」，或打开系统语音设置确认默认引擎后返回。</string>
+    <string name="tts_status_lang_missing">引擎已连接，但系统报告缺少中文数据。可先试听；若无声再下载语音包。</string>
     <string name="tts_status_error">语音引擎初始化失败，请打开系统语音设置检查。</string>
     <string name="tts_speak_failed">现在还不能朗读。请先配置系统语音引擎。</string>
     <string name="tts_settings_missing">找不到系统语音设置页，请在手机设置里搜索「文字转语音」。</string>
